@@ -50,6 +50,8 @@ k.loadSprite("assets", "./spritesheet.png", {
 k.setGravity(1600);
 
 k.scene("game", () => {
+    let score = 0;
+    
     k.add([
         k.rect(k.width(), k.height()),
         k.color(k.rand(1, 225), k.rand(1, 225), k.rand(1, 225)),
@@ -160,8 +162,6 @@ k.scene("game", () => {
         k.destroy(slash);
     });
 
-
-    let score = 0;
 
     const scoreLabel = k.add([
         k.text("Current Score: " + score),
