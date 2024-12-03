@@ -1,10 +1,15 @@
 import { k } from "./kaboomCtx";
 
-
-const FLOOR_HEIGHT = 48;
-const JUMP_FORCE = 800;
-const SPEED = 480;
-const SLASH_SPEED = 480;
+// Group related constants
+const GAME_CONFIG = {
+    FLOOR_HEIGHT: 48,
+    JUMP_FORCE: 800,
+    SPEED: 480,
+    SLASH_SPEED: 480,
+    PLAYER_SCALE: 5,
+    PLAYER_START_POS: { x: 80, y: 40 },
+    PLAYER_HEALTH: 3
+};
 
 let highscore = 0;
 
@@ -50,14 +55,7 @@ k.scene("game", () => {
         k.color(k.rand(1, 225), k.rand(1, 225), k.rand(1, 225)),
         k.opacity(1),
     ]);
-    const player = k.add([
-        k.sprite("assets", { anim: "idle-right" }),
-        k.pos(80, 40),
-        k.area(),
-        k.body(),
-        k.health(3),
-        k.scale(5),
-    ]);
+    const player = createPlayer();
 
     player.play("idle-right");
 
@@ -94,35 +92,57 @@ k.scene("game", () => {
     ]);
 
     function slashHit() {
-        k.add([
-            k.sprite("assets", { anim: "slash-right" }),
+        if (player.isSlashing) return; // Prevent spam clicking
+        
+        const slashAnim = player.direction === "right" ? "slash-right" : "slash-left";
+        const slashDirection = player.direction === "right" ? k.RIGHT : k.LEFT;
+        
+        player.isSlashing = true;
+        
+        const slash = k.add([
+            k.sprite("assets", { anim: slashAnim }),
             k.pos(player.pos),
             k.area(),
-            k.move(k.RIGHT, SLASH_SPEED),
-            k.scale(5),
+            k.move(slashDirection, GAME_CONFIG.SLASH_SPEED),
+            k.scale(GAME_CONFIG.PLAYER_SCALE),
             "slash"
         ]);
+
+        // Reset slashing after a delay
+        k.wait(0.5, () => {
+            player.isSlashing = false;
+        });
     }
 
     function spawnObject() {
-        const object = k.choose(["tree", "slime", "frog", "ghost", "wizard"]);
-        //const stars = k.choose(["g-star", "s-star", "b-star", "y-star"]);
+        const objects = {
+            tree: { scale: [5, 8], speed: GAME_CONFIG.SPEED },
+            slime: { scale: [5, 7], speed: GAME_CONFIG.SPEED * 1.2 },
+            frog: { scale: [5, 6], speed: GAME_CONFIG.SPEED * 1.5 },
+            ghost: { scale: [5, 7], speed: GAME_CONFIG.SPEED * 1.3 },
+            wizard: { scale: [5, 6], speed: GAME_CONFIG.SPEED * 1.4 }
+        };
+
+        const objectType = k.choose(Object.keys(objects));
+        const config = objects[objectType];
+        
         k.add([
-            k.sprite("assets", { anim: object }),
-            k.scale(k.rand(5, 8)),
+            k.sprite("assets", { anim: objectType }),
+            k.scale(k.rand(...config.scale)),
             k.area(),
             k.outline(4),
-            k.pos(k.width(), k.height() - 48),
+            k.pos(k.width(), k.height() - GAME_CONFIG.FLOOR_HEIGHT),
             k.anchor("botleft"),
             k.color(255, 180, 255),
-            k.move(k.LEFT, SPEED),
+            k.move(k.LEFT, config.speed),
             k.offscreen({ destroy: true }),
-            "object"
+            "object",
+            { type: objectType }
         ]);
 
-        k.wait(k.rand(0.5, 1.5), () => {
-            spawnObject();
-        });
+        // Gradually decrease spawn time as score increases
+        const minDelay = Math.max(0.3, 1.5 - (score / 5000));
+        k.wait(k.rand(minDelay, minDelay + 0.5), spawnObject);
     }
 
 
@@ -196,3 +216,20 @@ k.scene("lose", (score, highscore) => {
 })
 
 k.go("game");
+
+function createPlayer() {
+    const player = k.add([
+        k.sprite("assets", { anim: "idle-right" }),
+        k.pos(GAME_CONFIG.PLAYER_START_POS.x, GAME_CONFIG.PLAYER_START_POS.y),
+        k.area(),
+        k.body(),
+        k.health(GAME_CONFIG.PLAYER_HEALTH),
+        k.scale(GAME_CONFIG.PLAYER_SCALE),
+        // Add a custom component for direction
+        {
+            direction: "right",
+            isSlashing: false
+        }
+    ]);
+    return player;
+}
