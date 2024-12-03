@@ -64,18 +64,18 @@ k.scene("game", () => {
     k.onKeyPress("space", () => {
         if (player.isGrounded()) {
             player.play("walk-right");
-            player.jump(JUMP_FORCE);
+            player.jump(GAME_CONFIG.JUMP_FORCE);
         }
     });
 
     k.onKeyDown("left", () => {
-        player.move(-SPEED, 0);
+        player.move(-GAME_CONFIG.SPEED, 0);
         player.play("walk-left");
         player.direction = "left";
     });
 
     k.onKeyDown("right", () => {
-        player.move(SPEED, 0);
+        player.move(GAME_CONFIG.SPEED, 0);
         player.play("walk-right");
         player.direction = "right";
     });
