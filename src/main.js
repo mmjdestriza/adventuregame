@@ -83,8 +83,8 @@ k.scene("game", () => {
     });
 
     k.add([
-        k.rect(k.width(), FLOOR_HEIGHT),
-        k.pos(0, k.height() - FLOOR_HEIGHT),
+        k.rect(k.width(), GAME_CONFIG.FLOOR_HEIGHT),
+        k.pos(0, k.height() - GAME_CONFIG.FLOOR_HEIGHT),
         k.outline(4),
         k.area(),
         k.body({ isStatic: true }),
