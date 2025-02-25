@@ -67,6 +67,7 @@ function getCurrentLevel(score) {
 
 k.scene("game", () => {
     let score = 0;
+    let scoreMultiplier = 1;
     
     let currentLevel = getCurrentLevel(0);
     const bgRect = k.add([
@@ -76,6 +77,7 @@ k.scene("game", () => {
     ]);
 
     const player = createPlayer();
+    const hud = createHUD(score, GAME_CONFIG.PLAYER_HEALTH);
 
     player.play("idle-right");
 
@@ -304,23 +306,14 @@ k.scene("game", () => {
         k.destroy(slash);
     });
 
-
-    const scoreLabel = k.add([
-        k.text("Current Score: " + score),
-        k.pos(24, 24),
-    ]);
-    const highscoreLabel = k.add([
-        k.text("High Score:" + highscore),
-        k.pos(24, 58),
-    ]);
-
     // increment score every frame
     k.onUpdate(() => {
-        score++;
-        scoreLabel.text = "Current Score:" + score;
+        score += 1 * scoreMultiplier;
+        hud.scoreLabel.setScore(score);
+        
         if (score > highscore) {
-            highscore++;
-            highscoreLabel.text = "High Score:" + highscore;
+            highscore = score;
+            hud.highscoreLabel.text = "High Score: " + highscore;
         }
 
         const newLevel = getCurrentLevel(score);
@@ -347,76 +340,229 @@ k.scene("game", () => {
 });
 
 k.scene("lose", (score, highscore) => {
+    // Add particle effects for background
+    for(let i = 0; i < 100; i++) {
+        k.add([
+            k.rect(5, 5),
+            k.pos(k.rand(0, k.width()), k.rand(0, k.height())),
+            k.color(k.rand(0, 1), k.rand(0, 1), k.rand(0, 1)),
+            k.opacity(k.rand(0.1, 0.5)),
+            k.scale(k.rand(0.5, 2)),
+            {
+                update() {
+                    this.pos.y += k.rand(1, 3);
+                    if (this.pos.y > k.height()) {
+                        this.pos.y = 0;
+                    }
+                }
+            }
+        ]);
+    }
+    
+    // Dark overlay
     k.add([
         k.rect(k.width(), k.height()),
-        k.color(k.rand(1, 225), k.rand(1, 225), k.rand(1, 225)),
-        k.opacity(1),
+        k.color(0, 0, 0),
+        k.opacity(0.7),
     ]);
+    
+    // Game Over Title
+    k.add([
+        k.text("GAME OVER", { size: 80 }),
+        k.pos(k.width() / 2, k.height() / 4),
+        k.anchor("center"),
+        k.color(1, 0, 0),
+        {
+            update() {
+                this.scale = 1 + Math.sin(k.time() * 2) * 0.05;
+            }
+        }
+    ]);
+    
+    // Character with animation
     k.add([
         k.sprite("assets", { anim: "idle-down" }),
-        k.pos(k.width() / 2, k.height() / 2 - 80),
+        k.pos(k.width() / 2, k.height() / 2 - 40),
         k.scale(15),
         k.anchor("center"),
+        {
+            timer: 0,
+            update() {
+                this.timer += k.dt();
+                // Make the character gently bob up and down
+                this.pos.y += Math.sin(this.timer * 3) * 0.5;
+            }
+        }
     ]);
 
-    // display score
+    // Score display with fancy animations
     k.add([
-        k.text("Current Score:" + score),
-        k.pos(k.width() / 2, k.height() / 2 + 80),
-        k.scale(2),
+        k.text("Your Score: " + score, { size: 40 }),
+        k.pos(k.width() / 2, k.height() / 2 + 100),
+        k.scale(1),
         k.anchor("center"),
+        k.color(1, 1, 1),
+        {
+            timer: 0,
+            update() {
+                this.timer += k.dt();
+                // Subtle pulse effect
+                this.scale = 1 + Math.sin(this.timer * 4) * 0.05;
+            }
+        }
     ]);
+    
+    // Highlight if high score was achieved
+    const isNewHighscore = score >= highscore;
     k.add([
-        k.text("Highest Score:" + highscore),
-        k.pos(k.width() / 2, k.height() / 2 + 150),
-        k.scale(2),
+        k.text("Highest Score: " + highscore, { size: 32 }),
+        k.pos(k.width() / 2, k.height() / 2 + 160),
+        k.scale(isNewHighscore ? 1.2 : 1),
         k.anchor("center"),
+        k.color(isNewHighscore ? 1 : 0.8, isNewHighscore ? 0.8 : 0.8, isNewHighscore ? 0 : 0),
+    ]);
+    
+    // New High Score notification if applicable
+    if (isNewHighscore) {
+        k.add([
+            k.text("NEW HIGH SCORE!", { size: 36 }),
+            k.pos(k.width() / 2, k.height() / 2 + 210),
+            k.anchor("center"),
+            k.color(1, 1, 0),
+            {
+                timer: 0,
+                update() {
+                    this.timer += k.dt();
+                    this.opacity = 0.5 + Math.sin(this.timer * 8) * 0.5;
+                }
+            }
+        ]);
+    }
+
+    // Instructions to restart
+    k.add([
+        k.text("Press SPACE or click to play again", { size: 28 }),
+        k.pos(k.width() / 2, k.height() - 100),
+        k.anchor("center"),
+        k.color(1, 1, 1),
+        k.opacity(1),
+        {
+            timer: 0,
+            update() {
+                this.timer += k.dt();
+                this.opacity = 0.5 + Math.abs(Math.sin(this.timer * 3)) * 0.5;
+            }
+        }
     ]);
 
     // go back to game with space is pressed
     k.onKeyPress("space", () => k.go("game"));
     k.onClick(() => k.go("game"));
-})
+});
 
 k.scene("start", () => {
-    k.add([
+    // Animated background
+    const bg = k.add([
         k.rect(k.width(), k.height()),
-        k.color(0, 0, 0.5),
+        k.color(0, 0, 0.3),
     ]);
     
+    // Add background particles
+    for(let i = 0; i < 50; i++) {
+        k.add([
+            k.rect(3, 3),
+            k.pos(k.rand(0, k.width()), k.rand(0, k.height())),
+            k.color(1, 1, 1),
+            k.opacity(k.rand(0.2, 0.8)),
+            {
+                speed: k.rand(20, 60),
+                update() {
+                    this.pos.y -= this.speed * k.dt();
+                    if (this.pos.y < 0) {
+                        this.pos.y = k.height();
+                        this.pos.x = k.rand(0, k.width());
+                    }
+                }
+            }
+        ]);
+    }
+    
+    // Title with glow effect
     k.add([
-        k.text("ADVENTURE RUNNER", { size: 64 }),
+        k.text("ADVENTURE RUNNER", { size: 72 }),
         k.pos(k.width()/2, k.height()/4),
         k.anchor("center"),
-        k.color(1, 1, 1)
+        k.color(1, 1, 1),
+        {
+            timer: 0,
+            update() {
+                this.timer += k.dt();
+                // Subtle pulse and color shift
+                this.scale = 1 + Math.sin(this.timer * 2) * 0.05;
+                this.color = k.rgb(
+                    0.8 + Math.sin(this.timer) * 0.2,
+                    0.8 + Math.cos(this.timer * 1.5) * 0.2,
+                    1
+                );
+            }
+        }
     ]);
     
-    k.add([
-        k.text("Instructions:", { size: 32 }),
-        k.pos(k.width()/2, k.height()/2 - 50),
+    // Character showcase
+    const character = k.add([
+        k.sprite("assets", { anim: "idle-right" }),
+        k.scale(GAME_CONFIG.PLAYER_SCALE * 3),
+        k.pos(k.width()/2, k.height()/2 - 10),
         k.anchor("center"),
-        k.color(1, 1, 0)
+        {
+            dir: 1,
+            timer: 0,
+            update() {
+                this.timer += k.dt();
+                // Make character run back and forth
+                this.pos.x += this.dir * 2;
+                
+                if(this.pos.x > k.width()/2 + 100) {
+                    this.dir = -1;
+                    this.play("walk-left");
+                }
+                if(this.pos.x < k.width()/2 - 100) {
+                    this.dir = 1;
+                    this.play("walk-right");
+                }
+            }
+        }
     ]);
     
+    // Instructions header
+    k.add([
+        k.text("HOW TO PLAY", { size: 36 }),
+        k.pos(k.width()/2, k.height()/2 + 80),
+        k.anchor("center"),
+        k.color(1, 0.8, 0.2)
+    ]);
+    
+    // Instructions with icons
     const instructions = [
-        "Space: Jump",
-        "Left/Right Arrows: Move",
-        "Click: Slash enemies",
-        "Avoid obstacles, slash enemies"
+        "⌨️ Arrow Keys: Move left/right",
+        "🔼 Space: Jump",
+        "🖱️ Click: Slash enemies",
+        "❤️ Collect power-ups, avoid obstacles"
     ];
     
     instructions.forEach((inst, i) => {
         k.add([
             k.text(inst, { size: 24 }),
-            k.pos(k.width()/2, k.height()/2 + i * 30),
+            k.pos(k.width()/2, k.height()/2 + 130 + i * 30),
             k.anchor("center"),
             k.color(1, 1, 1)
         ]);
     });
     
+    // Flashing start prompt
     k.add([
         k.text("Press SPACE to start", { size: 32 }),
-        k.pos(k.width()/2, k.height() * 0.75),
+        k.pos(k.width()/2, k.height() - 100),
         k.anchor("center"),
         k.color(1, 1, 1),
         k.opacity(1),
@@ -429,6 +575,46 @@ k.scene("start", () => {
         }
     ]);
     
+    // Show high score if exists
+    if (highscore > 0) {
+        k.add([
+            k.text("High Score: " + highscore, { size: 28 }),
+            k.pos(k.width()/2, k.height() - 150),
+            k.anchor("center"),
+            k.color(1, 0.8, 0),
+            {
+                timer: 0,
+                update() {
+                    this.timer += k.dt();
+                    this.scale = 1 + Math.sin(this.timer * 1.5) * 0.05;
+                }
+            }
+        ]);
+    }
+    
+    // Add some decorative elements
+    for (let i = 0; i < 3; i++) {
+        const enemy = k.choose(["tree", "slime", "frog", "ghost", "wizard"]);
+        k.add([
+            k.sprite("assets", { anim: enemy }),
+            k.scale(3),
+            k.pos(
+                k.width() * (i + 1) / 4,
+                k.height() - 100
+            ),
+            k.anchor("center"),
+            {
+                timer: i * 0.7,
+                update() {
+                    this.timer += k.dt();
+                    // Bobbing motion
+                    this.pos.y = k.height() - 100 + Math.sin(this.timer * 2) * 10;
+                }
+            }
+        ]);
+    }
+    
+    // Event handlers
     k.onKeyPress("space", () => k.go("game"));
     k.onClick(() => k.go("game"));
 });
@@ -478,21 +664,27 @@ function createHUD(score, lives) {
         }
     ]);
     
-    // Health display with hearts
-    const healthContainer = hudContainer.add([
-        k.pos(0, 40)
+    // High score display
+    const highscoreLabel = hudContainer.add([
+        k.text("High Score: " + highscore, { size: 24 }),
+        k.pos(0, 30),
+        k.color(1, 0.8, 0)
     ]);
     
-    for (let i = 0; i < GAME_CONFIG.PLAYER_HEALTH; i++) {
+    // Health display with hearts
+    const healthContainer = hudContainer.add([
+        k.pos(0, 70)
+    ]);
+    
+    // Create heart icons instead of rectangles
+    for (let i = 0; i < lives; i++) {
         healthContainer.add([
-            k.rect(30, 30),
-            k.color(1, 0, 0),
+            k.text("❤️", { size: 32 }),
             k.pos(i * 40, 0),
-            k.outline(2),
             "heart",
             { index: i }
         ]);
     }
     
-    return { scoreLabel, healthContainer };
+    return { scoreLabel, highscoreLabel, healthContainer };
 }
